@@ -8,8 +8,9 @@ This repository contains the full pipeline for:
 - visualizing branching regimes.
 
 ## Directories
-You will work with three directories, configured inside the notebooks:
-- `data_dir_patents`: raw input data (you provide this).
+You will work with four directories, configured inside the notebooks:
+- `data_dir_patents`: raw patents input data (you provide this).
+- `data_dir_papers`: raw papers input data (you provide this).
 - `output_dir`: derived outputs from the notebooks (auto‑generated).
 - `model_dir`: model simulation outputs (auto‑generated). This is **`data_simulations/`**.
 
