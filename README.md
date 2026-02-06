@@ -2,7 +2,7 @@
 
 This repository contains the full pipeline for:
 - building real‑data series (patents + papers),
-- fitting parameters for the UMT‑TAP model,
+- fitting parameters for the model,
 - running simulations,
 - comparing real data vs simulations,
 - visualizing branching regimes.
@@ -20,9 +20,9 @@ You will work with four directories, configured inside the notebooks:
 **Input (in `data_dir_patents`)**
 - One CSV per year, named `YYYY.csv` (e.g., `1980.csv`, `1981.csv`, ...).
 - Required columns:
-  - `publication.date` (format `YYYYMMDD`)
-  - `inventor` (list-like string of dicts, each with `name`)
-  - `ipc` (list-like string)
+ - `publication.date` (format `YYYYMMDD`)
+ - `inventor` (list-like string of dicts, each with `name`)
+ - `ipc` (list-like string)
 
 **Processing**
 - Excludes first authors with more than `max_patents_per_year` in any year.
@@ -42,12 +42,12 @@ You will work with four directories, configured inside the notebooks:
 ### Papers (`module_1_papers.ipynb`)
 **Input (in `data_dir_papers`)**
 - OpenAlex subfield parquet files:
-  - `merged_df_subfield_{ID}.parquet`
+ - `merged_df_subfield_{ID}.parquet`
 - Required columns:
-  - `date`
-  - `topics`
-  - `keywords`
-  - `authors` (first author used as proxy)
+ - `date`
+ - `topics`
+ - `keywords`
+ - `authors` (first author used as proxy)
 
 **Processing**
 - Excludes first authors with more than `max_papers_per_year` in any year.
@@ -112,7 +112,7 @@ gcc -o model_micro_macro model_micro_macro.c -lm
 
 Reads the `.dat` files from `data_simulations/` and writes reduced CSVs into `output_dir`:
 - Patents: `model_T=..._log.csv`, `model_T=..._lin.csv`, `model_T=..._freq.csv`
-- Papers:  `outputs/model/model_T=..._log.csv`, `..._lin.csv`, `..._freq.csv`
+- Papers: `outputs/model/model_T=..._log.csv`, `..._lin.csv`, `..._freq.csv`
 
 ## Module 4 — Comparison (Real Data vs Model)
 **Notebook:** `module_4_comparison.ipynb`
