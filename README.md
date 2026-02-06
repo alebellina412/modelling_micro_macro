@@ -79,7 +79,7 @@ You will work with four directories, configured inside the notebooks:
 **Outputs**
 - Figures only (no new data files required for later modules).
 
-## Module 3 — UMT‑TAP Simulations (Micro–Macro)
+## Module 3 — Simulations (Micro–Macro)
 
 ### Compile
 ```bash
