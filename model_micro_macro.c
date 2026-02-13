@@ -13,7 +13,7 @@
 
 #define NARGC 8
 #define N_MAX_INIT ((int)1e7)
-#define N_MAX_SIM ((int)1e6)
+#define N_MAX_SIM ((int)1e7)
 
 static int cmp_desc_double(const void *a, const void *b)
 {
