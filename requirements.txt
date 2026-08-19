@@ -1,0 +1,10 @@
+# Versions used for the published run. Newer ones are likely fine; these are
+# the ones the figures were produced with.
+numpy==1.26.4
+pandas==2.2.3
+matplotlib==3.7.3
+scipy==1.14.1
+statsmodels==0.14.4
+pyarrow==14.0.1
+ipython==8.15.0
+notebook

@@ -1,0 +1,17 @@
+\begin{tabular}{lcccr}
+\toprule
+Model & $a$ & $b$ & $\beta$ & RMSE \\
+\midrule
+\multicolumn{5}{l}{\textit{patents EPO}} \\
+linear, $D_w=b\,D$ & -- & $1.330502 \pm 0.000045$ & -- & $2.175\times 10^{4}$ \\
+power law, $D_w=a\,D^{\beta}$ & $0.40786 \pm 0.00025$ & -- & $1.091065 \pm 0.000049$ & $2.861\times 10^{4}$ \\
+logarithmic, $D_w=a+b\log D$ & $(-2.839 \pm 0.001)\times 10^{6}$ & $(2.638 \pm 0.001)\times 10^{5}$ & -- & $1.229\times 10^{5}$ \\
+exponential, $D_w=a\,e^{b\,D/D_{\max}}$ & $(7.758 \pm 0.006)\times 10^{4}$ & $3.0374 \pm 0.0014$ & -- & $1.941\times 10^{5}$ \\
+\midrule
+\multicolumn{5}{l}{\textit{papers OA}} \\
+linear, $D_w=b\,D$ & -- & $0.707821 \pm 0.000007$ & -- & $1.769\times 10^{4}$ \\
+power law, $D_w=a\,D^{\beta}$ & $3.49421 \pm 0.00066$ & -- & $0.886167 \pm 0.000014$ & $1.987\times 10^{4}$ \\
+logarithmic, $D_w=a+b\log D$ & $(-4.158 \pm 0.001)\times 10^{6}$ & $(3.595 \pm 0.001)\times 10^{5}$ & -- & $1.702\times 10^{5}$ \\
+exponential, $D_w=a\,e^{b\,D/D_{\max}}$ & $(1.531 \pm 0.001)\times 10^{5}$ & $2.50842 \pm 0.00055$ & -- & $1.705\times 10^{5}$ \\
+\bottomrule
+\end{tabular}

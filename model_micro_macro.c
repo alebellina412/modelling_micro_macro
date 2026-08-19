@@ -15,21 +15,64 @@
 #define N_MAX_INIT ((int)1e7)
 #define N_MAX_SIM ((int)1e7)
 
-static int cmp_desc_double(const void *a, const void *b)
+static int cmp_desc_int(const void *a, const void *b)
 {
-    double da = *(const double *)a;
-    double db = *(const double *)b;
-    if (da < db)
-        return 1;
-    if (da > db)
-        return -1;
-    return 0;
+    const int ia = *(const int *)a;
+    const int ib = *(const int *)b;
+    return (ib - ia);
+}
+
+static int is_close_to_integer(double x)
+{
+    double nearest = round(x);
+    return fabs(x - nearest) < 1e-9;
+}
+
+static void fenwick_add(long long *tree, int n, int idx, long long delta)
+{
+    while (idx <= n)
+    {
+        tree[idx] += delta;
+        idx += idx & -idx;
+    }
+}
+
+static long long fenwick_sum(const long long *tree, int idx)
+{
+    long long out = 0;
+    while (idx > 0)
+    {
+        out += tree[idx];
+        idx -= idx & -idx;
+    }
+    return out;
+}
+
+static int fenwick_find_prefix(const long long *tree, int n, long long target)
+{
+    int idx = 0;
+    int bit = 1;
+    while ((bit << 1) <= n)
+    {
+        bit <<= 1;
+    }
+    while (bit > 0)
+    {
+        int next = idx + bit;
+        if (next <= n && tree[next] < target)
+        {
+            idx = next;
+            target -= tree[next];
+        }
+        bit >>= 1;
+    }
+    return idx + 1;
 }
 
 int main(int argc, char *argv[])
 {
     char fn1[256], fn2[256];
-    FILE *dati1, *dati2;
+    FILE *traj_file, *freq_file;
 
     int tau_max, N0;
     double nu, rho, a, b, w0;
@@ -53,150 +96,128 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: T and N0 must be positive.\n");
         return EXIT_FAILURE;
     }
+    if (!is_close_to_integer(nu) || !is_close_to_integer(rho))
+    {
+        fprintf(stderr, "Error: this implementation currently requires integer nu and rho.\n");
+        return EXIT_FAILURE;
+    }
+    const int nu_i = (int)llround(nu);
+    const int rho_i = (int)llround(rho);
 
     int seed = 1;
     srand48(seed);
 
-    // ------------------------------
-    // Stage 1: create initial conditions (UMT without explorers)
-    // ------------------------------
-    printf("Creating initial conditions (no explorers)...\n");
-
-    int *seq = calloc(N_MAX_INIT, sizeof(*seq));
-    double *freq_init = calloc(N0, sizeof(*freq_init));
-
-    if (!seq || !freq_init)
+    /* ------------------------------
+       Stage 1: exact initial conditions
+       ------------------------------ */
+    int *seq_init = calloc(N_MAX_INIT, sizeof(*seq_init));
+    int *freq_init = calloc((size_t)N0, sizeof(*freq_init));
+    if (!seq_init || !freq_init)
     {
         perror("calloc initial conditions");
-        free(seq);
+        free(seq_init);
         free(freq_init);
         return EXIT_FAILURE;
     }
 
     int D = 0;
-    int t = 0;
-    int step_print_init = 1000;
-
-    // Match create_initial_conditions_UMT: initial urn weight N0_init, D grows until Dmax (= N0)
+    int t_init = 0;
     int N0_init = 1;
-    double total_weight_old = 0.0;
-    double total_weight_new = (double)N0_init;
-    double total_weight = (double)N0_init;
+    long long total_weight_old = 0;
+    long long total_weight_new = N0_init;
+    long long total_weight = N0_init;
 
-    while (D < N0 && t < N_MAX_INIT)
+    while (D < N0 && t_init < N_MAX_INIT)
     {
-        double p_old = total_weight_old / total_weight;
+        double p_old = (double)total_weight_old / (double)total_weight;
         double ran = (lrand48() / (RAND_MAX + 1.0));
-        int estr;
+        int estr = -1;
 
         if (ran > p_old)
         {
             estr = D;
-            D++;
-            total_weight_new += nu;
-            total_weight_old += rho;
-            total_weight += rho;
-            total_weight += nu;
+            D += 1;
+            total_weight_new += nu_i;
+            total_weight_old += rho_i;
+            total_weight += rho_i + nu_i;
         }
         else
         {
-            if (t == 0)
+            if (t_init == 0)
             {
                 continue;
             }
-            int random = rand() % t;
-            estr = seq[random];
-            total_weight_old += rho;
-            total_weight += rho;
+            int random = rand() % t_init;
+            estr = seq_init[random];
+            total_weight_old += rho_i;
+            total_weight += rho_i;
         }
 
-        seq[t] = estr;
-
+        seq_init[t_init] = estr;
         if (estr >= 0 && estr < N0)
         {
-            freq_init[estr] += 1.0;
+            freq_init[estr] += rho_i;
         }
-
-        if (t % step_print_init == 0)
-        {
-            printf("init t = %d\tD = %d\testr = %d\n", t, D, estr);
-        }
-
-        t++;
+        t_init += 1;
     }
 
     if (D < N0)
     {
         fprintf(stderr, "Reached N_MAX_INIT before D reached N0. Increase N_MAX_INIT.\n");
-        free(seq);
+        free(seq_init);
         free(freq_init);
         return EXIT_FAILURE;
     }
 
-    printf("Initial conditions finished. Steps = %d, D = %d\n", t, D);
+    qsort(freq_init, (size_t)N0, sizeof(*freq_init), cmp_desc_int);
 
-    free(seq);
-
-    // ------------------------------
-    // Stage 2: UMT-TAP dynamics with explorers
-    // ------------------------------
-    int *freq = calloc(N_MAX_SIM, sizeof(*freq));
+    /* ------------------------------
+       Stage 2: exact dynamics with efficient structures
+       ------------------------------ */
     int *times = calloc(N_MAX_SIM, sizeof(*times));
-    double *prob = calloc(N_MAX_SIM, sizeof(*prob));
-    double *first_reinforcements = calloc(N0, sizeof(*first_reinforcements));
-    double *prob_reinforcements = calloc(N0, sizeof(*prob_reinforcements));
+    int *freq_seen = calloc(N_MAX_SIM, sizeof(*freq_seen));
+    int *old_weight = calloc(N_MAX_SIM, sizeof(*old_weight));
+    int *reservoir_weight = calloc((size_t)N0, sizeof(*reservoir_weight));
+    long long *fenwick = calloc((size_t)N0 + 1, sizeof(*fenwick));
+    long long *old_fenwick = calloc((size_t)N_MAX_SIM + 2, sizeof(*old_fenwick));
 
-    if (!freq || !times || !prob || !first_reinforcements || !prob_reinforcements)
+    if (!times || !freq_seen || !old_weight || !reservoir_weight || !fenwick || !old_fenwick)
     {
-        perror("calloc arrays");
-        free(freq);
+        perror("calloc stage 2");
+        free(seq_init);
+        free(freq_init);
         free(times);
-        free(prob);
-        free(first_reinforcements);
-        free(prob_reinforcements);
-        free(freq_init);
+        free(freq_seen);
+        free(old_weight);
+        free(reservoir_weight);
+        free(fenwick);
+        free(old_fenwick);
         return EXIT_FAILURE;
     }
 
-    // Sort initial frequencies by rank (descending), as in frequencies_*.dat
-    double *freq_sorted = malloc((size_t)N0 * sizeof(*freq_sorted));
-    if (!freq_sorted)
-    {
-        perror("malloc freq_sorted");
-        free(freq_init);
-        return EXIT_FAILURE;
-    }
+    long long total_reinforcements = 0;
     for (int i = 0; i < N0; i++)
     {
-        freq_sorted[i] = freq_init[i];
+        reservoir_weight[i] = rho_i * freq_init[i];
+        total_reinforcements += reservoir_weight[i];
+        fenwick_add(fenwick, N0, i + 1, reservoir_weight[i]);
     }
-
-    qsort(freq_sorted, (size_t)N0, sizeof(*freq_sorted), cmp_desc_double);
-
-    double N_total = 0.0;
-    for (int i = 0; i < N0; i++)
-    {
-        first_reinforcements[i] = rho * freq_sorted[i];
-        N_total += first_reinforcements[i];
-    }
-
-    free(freq_sorted);
+    free(seq_init);
     free(freq_init);
 
-    double total_reinforcements = N_total;
-    int N_reinforcements = N0;
-    double adj_possible_reinforced = N_total;
-    double adj_possible_normal = nu * N0;
+    /* Match the full code: reset the stage-2 RNG stream after building
+       the initial conditions. */
+    srand48(seed);
+
+    long long adj_possible_reinforced = total_reinforcements;
+    long long adj_possible_normal = (long long)nu_i * (long long)N0;
     int N_objects = 1;
 
-    t = 0;
+    long long t = 0;
+    D = 0;
+    int max_object_id = 0;
     double w = 0.0;
-    double delta_w = b;
-
-    prob[0] = 1.0;
-
-    // reset RNG to match a separate run of the simulation stage
-    srand48(seed);
+    long long frontier_mass = total_reinforcements;
 
     make_dir("data_simulations");
 
@@ -207,144 +228,175 @@ int main(int argc, char *argv[])
              "data_simulations/n_model_T=%d_nu=%.6g_rho=%.6g_N0=%d_a=%.6g_b=%.6g_w0=%.6g.dat",
              tau_max, nu, rho, N0, a, b, w0);
 
-    dati1 = fopen(fn1, "w");
-    if (!dati1)
+    traj_file = fopen(fn1, "w");
+    if (!traj_file)
     {
-        perror("fopen dati1");
+        perror("fopen traj_file");
+        free(times);
+        free(freq_seen);
+        free(old_weight);
+        free(reservoir_weight);
+        free(fenwick);
+        free(old_fenwick);
         return EXIT_FAILURE;
     }
 
-    dati2 = fopen(fn2, "w");
-    if (!dati2)
+    freq_file = fopen(fn2, "w");
+    if (!freq_file)
     {
-        perror("fopen dati2");
-        fclose(dati1);
+        perror("fopen freq_file");
+        fclose(traj_file);
+        free(times);
+        free(freq_seen);
+        free(old_weight);
+        free(reservoir_weight);
+        free(fenwick);
+        free(old_fenwick);
         return EXIT_FAILURE;
     }
 
-    D = 0;
-
-    int step_print = 1000;
+    int step_print = 10000;
     int step_fprint = 1;
 
     for (int tau = 0; tau < tau_max; tau++)
     {
         double num_estr = a * (w0 + w);
+        if (num_estr < 1.0)
+        {
+            num_estr = 1.0;
+        }
 
         for (int j = 0; j < num_estr; j++)
         {
             t += 1;
+            if (t >= N_MAX_SIM)
+            {
+                fprintf(stderr, "Reached N_MAX_SIM. Increase the buffer size.\n");
+                fclose(traj_file);
+                fclose(freq_file);
+                free(times);
+                free(freq_seen);
+                free(old_weight);
+                free(reservoir_weight);
+                free(fenwick);
+                free(old_fenwick);
+                return EXIT_FAILURE;
+            }
 
-            double ran = (lrand48() / (RAND_MAX + 1.0));
-            int estr = sample(prob, ran);
+            int estr = -1;
+            long long total_old_mass = fenwick_sum(old_fenwick, D);
+            long long total_mass = total_old_mass + frontier_mass;
+            long long draw = (long long)(lrand48() / (RAND_MAX + 1.0) * total_mass);
+            if (draw < 0)
+            {
+                draw = 0;
+            }
+            if (draw >= total_mass)
+            {
+                draw = total_mass - 1;
+            }
+
+            if (draw < total_old_mass)
+            {
+                estr = fenwick_find_prefix(old_fenwick, D, draw + 1) - 1;
+            }
+            else
+            {
+                estr = N_objects - 1;
+            }
 
             if (t % step_print == 0)
             {
-                printf("tau = %d\t t = %d\tw=%d\tD = %d\testr=%d\n", tau, t, (int)w, D, estr);
+                printf("tau = %d\t t = %lld\tw=%d\tD = %d\testr=%d\n", tau, t, (int)w, D, estr);
             }
             if (t % step_fprint == 0)
             {
-                fprintf(dati1, "%d\t%d\t%d\t%d\t%d\t%d\n", tau, t, D, estr, (int)num_estr, (int)w);
+                fprintf(traj_file, "%d\t%lld\t%d\t%d\t%d\t%d\n", tau, t, D, estr, (int)num_estr, (int)w);
             }
 
             if (estr == N_objects - 1)
             {
-                times[estr] = t;
-                D++;
-                w += delta_w;
+                int obj_id = estr;
+                times[obj_id] = (int)t;
+                freq_seen[obj_id] = 1;
 
-                prob[estr + 1] = prob[estr];
-
-                N_objects++;
-                double N_total_temp = N_total;
-
-                freq[estr] = 1;
-
-                if (N_reinforcements > 0)
+                D += 1;
+                w += b;
+                frontier_mass += nu_i;
+                N_objects += 1;
+                if (N_objects > max_object_id)
                 {
-                    ran = (lrand48() / (RAND_MAX + 1.0));
+                    max_object_id = N_objects;
+                }
 
-                    if (ran <= (adj_possible_reinforced / (adj_possible_reinforced + adj_possible_normal)))
+                int added_old_mass = rho_i;
+                if (adj_possible_reinforced > 0)
+                {
+                    double ran = (lrand48() / (RAND_MAX + 1.0));
+                    double p_reinf = (double)adj_possible_reinforced /
+                                     (double)(adj_possible_reinforced + adj_possible_normal);
+
+                    if (ran <= p_reinf)
                     {
-                        for (int i = 0; i < N_reinforcements; i++)
+                        long long target = (long long)(lrand48() / (RAND_MAX + 1.0) * total_reinforcements) + 1;
+                        if (target < 1)
                         {
-                            prob_reinforcements[i] = first_reinforcements[i] / total_reinforcements;
+                            target = 1;
                         }
-
-                        ran = (lrand48() / (RAND_MAX + 1.0));
-                        int index = sample(prob_reinforcements, ran);
-
-                        N_total += (first_reinforcements[index] + rho);
-                        N_total += nu;
-
-                        prob[estr] = (first_reinforcements[index] + rho) / N_total_temp;
-                        prob[estr + 1] += (nu) / N_total_temp;
-
-                        total_reinforcements -= first_reinforcements[index];
-                        adj_possible_reinforced -= first_reinforcements[index];
-                        adj_possible_normal += (first_reinforcements[index] + nu);
-
-                        for (int i = index; i < N_reinforcements; i++)
+                        if (target > total_reinforcements)
                         {
-                            first_reinforcements[i] = first_reinforcements[i + 1];
+                            target = total_reinforcements;
                         }
+                        int idx = fenwick_find_prefix(fenwick, N0, target) - 1;
+                        int reinforcement = reservoir_weight[idx];
 
-                        N_reinforcements--;
+                        added_old_mass = reinforcement + rho_i;
+                        total_reinforcements -= reinforcement;
+                        adj_possible_reinforced -= reinforcement;
+                        adj_possible_normal += reinforcement + nu_i;
+
+                        fenwick_add(fenwick, N0, idx + 1, -reinforcement);
+                        reservoir_weight[idx] = 0;
                     }
                     else
                     {
-                        N_total += rho;
-                        N_total += nu;
-
-                        prob[estr] = rho / N_total_temp;
-                        prob[estr + 1] += (nu) / N_total_temp;
-
-                        adj_possible_normal += (nu + 1);
+                        adj_possible_normal += nu_i + rho_i;
                     }
                 }
-                else
-                {
-                    N_total += rho;
-                    N_total += nu;
 
-                    prob[estr] = rho / N_total_temp;
-                    prob[estr + 1] += (nu) / N_total_temp;
-                }
-
-                for (int i = 0; i < N_objects; i++)
-                {
-                    prob[i] *= (N_total_temp / N_total);
-                }
+                old_weight[obj_id] += added_old_mass;
+                fenwick_add(old_fenwick, N_MAX_SIM + 1, obj_id + 1, added_old_mass);
             }
             else
             {
-                double N_total_temp = N_total;
-                N_total += rho;
-
-                freq[estr] += 1;
-                prob[estr] += rho / N_total_temp;
-
-                for (int i = 0; i < N_objects; i++)
-                {
-                    prob[i] *= (N_total_temp / N_total);
-                }
+                freq_seen[estr] += 1;
+                old_weight[estr] += rho_i;
+                fenwick_add(old_fenwick, N_MAX_SIM + 1, estr + 1, rho_i);
             }
         }
     }
 
-    for (int i = 0; i < N_objects; i++)
+    long long total_mass = fenwick_sum(old_fenwick, D) + frontier_mass;
+    if (total_mass <= 0)
     {
-        fprintf(dati2, "%d\t%d\t%lf\t%lf\n", times[i], freq[i], prob[i] * N_total, prob[i]);
+        total_mass = 1;
     }
 
-    fclose(dati1);
-    fclose(dati2);
+    for (int i = 0; i < D; i++)
+    {
+        double prob = (double)old_weight[i] / (double)total_mass;
+        fprintf(freq_file, "%d\t%d\t%d\t%.12g\n", times[i], freq_seen[i], old_weight[i], prob);
+    }
 
-    free(prob);
-    free(freq);
+    fclose(traj_file);
+    fclose(freq_file);
+
     free(times);
-    free(first_reinforcements);
-    free(prob_reinforcements);
+    free(freq_seen);
+    free(old_weight);
+    free(reservoir_weight);
+    free(fenwick);
+    free(old_fenwick);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

@@ -1,0 +1,18 @@
+{
+  "dataset": "papers",
+  "best_N0": 49000,
+  "rmse_D": 17727.29130752919,
+  "rmse_Dw": 12208.608413336877,
+  "rmse_log_total": 0.08563425447692705,
+  "trajectory_path": "sim_runs/papers/data_simulations/model_T=41_nu=1_rho=1_N0=49000_a=0.167_b=0.71_w0=212313.dat",
+  "frequency_path": "sim_runs/papers/data_simulations/n_model_T=41_nu=1_rho=1_N0=49000_a=0.167_b=0.71_w0=212313.dat",
+  "params": {
+    "T": 41,
+    "nu": 1.0,
+    "rho": 1.0,
+    "N0": 49000,
+    "a": 0.167,
+    "b": 0.71,
+    "w0": 212313.0
+  }
+}

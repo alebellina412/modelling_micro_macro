@@ -17,7 +17,7 @@
 int main(int argc, char *argv[])
 {
     char fn1[256], fn2[256];
-    FILE *dati1, *dati2;
+    FILE *traj_file, *freq_file;
 
     int mode, tau_max, N0, i, j, *freq, *times, estr, D, step_print, step_fprint, seed, t;
     double ran, *prob, nu, rho, N_objects, N_total, N_total_temp, w, w_actual, w_prev, delta_w, tau_decimal;
@@ -82,9 +82,9 @@ int main(int argc, char *argv[])
         snprintf(fn2, sizeof(fn2), "data_simulations/n_model_singularity_mode=2_rho=%.1lf_nu=%.1lf.dat", rho, nu);
     }
 
-    dati1 = fopen(fn1, "w");
-    dati2 = fopen(fn2, "w");
-    if (!dati1 || !dati2)
+    traj_file = fopen(fn1, "w");
+    freq_file = fopen(fn2, "w");
+    if (!traj_file || !freq_file)
     {
         perror("fopen");
         return EXIT_FAILURE;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
             }
             if (t % step_fprint == 0)
             {
-                fprintf(dati1, "%lf\t%d\t%d\t%.0lf\t%d\n", tau_decimal, t, D, w, estr);
+                fprintf(traj_file, "%lf\t%d\t%d\t%.0lf\t%d\n", tau_decimal, t, D, w, estr);
             }
 
             if (estr == N_objects - 1)
@@ -178,11 +178,11 @@ int main(int argc, char *argv[])
 
     for (i = 0; i < N_objects; i++)
     {
-        fprintf(dati2, "%d\t%d\t%lf\t%lf\n", times[i], freq[i], prob[i] * N_total, prob[i]);
+        fprintf(freq_file, "%d\t%d\t%lf\t%lf\n", times[i], freq[i], prob[i] * N_total, prob[i]);
     }
 
-    fclose(dati1);
-    fclose(dati2);
+    fclose(traj_file);
+    fclose(freq_file);
     free(prob);
     free(freq);
     free(times);

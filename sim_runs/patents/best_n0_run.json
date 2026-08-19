@@ -1,0 +1,18 @@
+{
+  "dataset": "patents",
+  "best_N0": 100500,
+  "rmse_D": 13530.793749806402,
+  "rmse_Dw": 5416.668940243625,
+  "rmse_log_total": 0.06610892934421286,
+  "trajectory_path": "sim_runs/patents/data_simulations/model_T=41_nu=1_rho=1_N0=100500_a=0.0545_b=1.33_w0=269781.dat",
+  "frequency_path": "sim_runs/patents/data_simulations/n_model_T=41_nu=1_rho=1_N0=100500_a=0.0545_b=1.33_w0=269781.dat",
+  "params": {
+    "T": 41,
+    "nu": 1.0,
+    "rho": 1.0,
+    "N0": 100500,
+    "a": 0.0545,
+    "b": 1.33,
+    "w0": 269781.0
+  }
+}
